@@ -19,6 +19,7 @@ using Windows.Media.Editing;
 using Windows.Media.Playback;
 using Windows.Media.Streaming.Adaptive;
 using Windows.Storage;
+using Windows.Storage.Streams;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -230,6 +231,30 @@ namespace BiliLite.Controls
 
 
         public bool Opening { get; set; }
+
+        public SystemMediaTransportControls SystemMediaTransportControls
+        {
+            get {
+                if (_playerAudio != null)
+                {
+                    if (_playerAudio.CommandManager.IsEnabled)
+                    {
+                        _playerAudio.CommandManager.IsEnabled = false;
+                    }
+                    return _playerAudio.SystemMediaTransportControls;
+                } else if (_playerVideo != null)
+                {
+                    if (_playerVideo.CommandManager.IsEnabled)
+                    {
+                        _playerVideo.CommandManager.IsEnabled = false;
+                    }
+                    return _playerVideo.SystemMediaTransportControls;
+                }
+
+                return null;
+            }
+        }
+
         public Player()
         {
             this.InitializeComponent();
@@ -850,7 +875,7 @@ namespace BiliLite.Controls
                 _playerVideo.TimelineController = _mediaTimelineController;
                 if (audioUrl != null)
                 {
-                    _playerAudio.CommandManager.IsEnabled = true;
+                    _playerAudio.CommandManager.IsEnabled = false;
                     _playerAudio.TimelineController = _mediaTimelineController;
                 }
               
@@ -942,6 +967,22 @@ namespace BiliLite.Controls
                 });
                 if (audioUrl != null)
                 {
+                    //播放错误
+                    _playerAudio.MediaFailed += new TypedEventHandler<MediaPlayer, MediaPlayerFailedEventArgs>(async (e, arg) =>
+                    {
+                        if (_playerAudio == null || _playerAudio.Source == null) return;
+                        await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+                        {
+                            PlayState = PlayState.Error;
+                            PlayStateChanged?.Invoke(this, PlayState);
+                            ChangeEngine?.Invoke(this, new ChangePlayerEngine()
+                            {
+                                need_change = false,
+                                message = arg.Error + " " + arg.ErrorMessage + " " + (arg.ExtendedErrorCode?.ToString() ?? "")
+                            });
+                        });
+
+                    });
                     _playerAudio.PlaybackSession.BufferingStarted += new TypedEventHandler<MediaPlaybackSession, object>(async (e, arg) =>
                     {
                         await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
@@ -962,6 +1003,32 @@ namespace BiliLite.Controls
                         await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
                         {
                             Buffering = false;
+                        });
+                    });
+                    _playerAudio.MediaEnded += new TypedEventHandler<MediaPlayer, object>(async (e, arg) =>
+                    {
+                        await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+                        {
+                            if (this.PlayState != PlayState.End 
+                                && _playerVideo.PlaybackSession.PlaybackState == MediaPlaybackState.Playing
+                                && _playerVideo.PlaybackSession.NaturalDuration.TotalSeconds - _playerVideo.PlaybackSession.Position.TotalSeconds > 5)
+                            {
+                                if (isLocal)
+                                {
+                                    Utils.ShowMessageToast("音频过早结束，可能损坏，请尝试重新缓存");
+                                }
+                                else
+                                {
+                                    Utils.ShowMessageToast("音频过早结束，可能加载失败，正在重试");
+                                    ChangeEngine?.Invoke(this, new ChangePlayerEngine()
+                                    {
+                                        change_engine = PlayEngine.FFmpegInteropMSS,
+                                        current_mode = PlayEngine.FFmpegInteropMSS,
+                                        need_change = true,
+                                        play_type = PlayMediaType.Dash
+                                    });
+                                }
+                            }
                         });
                     });
                     //设置音量
@@ -1578,6 +1645,14 @@ namespace BiliLite.Controls
         public void ClosePlay()
         {
             //全部设置为NULL
+            if (_mediaTimelineController != null)
+            {
+                if (_mediaTimelineController.State == MediaTimelineControllerState.Running)
+                {
+                    _mediaTimelineController.Pause();
+                }
+                _mediaTimelineController = null;
+            }
             if (mediaPlayerVideo.MediaPlayer != null)
             {
                 mediaPlayerVideo.SetMediaPlayer(null);
@@ -1586,16 +1661,6 @@ namespace BiliLite.Controls
             if (mediaPlayerAudio.MediaPlayer != null)
             {
                 mediaPlayerVideo.SetMediaPlayer(null);
-            }
-            if (_ffmpegMSSVideo != null)
-            {
-                _ffmpegMSSVideo.Dispose();
-                _ffmpegMSSVideo = null;
-            }
-            if (_ffmpegMSSAudio != null)
-            {
-                _ffmpegMSSAudio.Dispose();
-                _ffmpegMSSAudio = null;
             }
             if (_playerVideo != null)
             {
@@ -1609,14 +1674,20 @@ namespace BiliLite.Controls
                 _playerAudio.Dispose();
                 _playerAudio = null;
             }
+            if (_ffmpegMSSVideo != null)
+            {
+                _ffmpegMSSVideo.Dispose();
+                _ffmpegMSSVideo = null;
+            }
+            if (_ffmpegMSSAudio != null)
+            {
+                _ffmpegMSSAudio.Dispose();
+                _ffmpegMSSAudio = null;
+            }
             if (_mediaPlaybackList != null)
             {
                 _mediaPlaybackList.Items.Clear();
                 _mediaPlaybackList = null;
-            }
-            if (_mediaTimelineController != null)
-            {
-                _mediaTimelineController = null;
             }
             if (_ffmpegMSSItems != null)
             {
