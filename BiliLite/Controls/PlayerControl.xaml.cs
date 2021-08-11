@@ -1307,31 +1307,75 @@ namespace BiliLite.Controls
             };
             if (quality.playUrlInfo.mode == VideoPlayMode.Dash)
             {
-                result = await Player.PlayerDashUseNative(quality.playUrlInfo.dash_video_url, quality.playUrlInfo.dash_audio_url, quality.HttpHeader, positon: _postion);
-                if (!result.result)
+                int decoderType = SettingHelper.GetValue<int>(SettingHelper.Player.DASH_VIDEO_DECODER, 0);
+                
+                if (decoderType == 1)
                 {
                     result = await Player.PlayDashUseFFmpegInterop(quality.playUrlInfo.dash_video_url, quality.playUrlInfo.dash_audio_url, quality.HttpHeader, positon: _postion);
-                    //if (!result.result)
-                    //{
-                    //    result = await Player.PlayDashUseFFmpegInterop(quality.playUrlInfo.dash_video_url, quality.playUrlInfo.dash_audio_url, positon: _postion);
-                    //}
+                    
+                    if (!result.result)
+                    {
+                        result = await Player.PlayerDashUseNative(quality.playUrlInfo.dash_video_url, quality.playUrlInfo.dash_audio_url, quality.HttpHeader, positon: _postion);
+                    }
+                } else
+                {
+                    result = await Player.PlayerDashUseNative(quality.playUrlInfo.dash_video_url, quality.playUrlInfo.dash_audio_url, quality.HttpHeader, positon: _postion);
+                    
+                    if (!result.result)
+                    {
+                        result = await Player.PlayDashUseFFmpegInterop(quality.playUrlInfo.dash_video_url, quality.playUrlInfo.dash_audio_url, quality.HttpHeader, positon: _postion);
+                        //if (!result.result)
+                        //{
+                        //    result = await Player.PlayDashUseFFmpegInterop(quality.playUrlInfo.dash_video_url, quality.playUrlInfo.dash_audio_url, positon: _postion);
+                        //}
+                    }
                 }
             }
             else if (quality.playUrlInfo.mode == VideoPlayMode.SingleFlv)
             {
-                result = await Player.PlaySingleFlvUseSYEngine(quality.playUrlInfo.multi_flv_url[0].url, quality.HttpHeader, positon: _postion, epId: CurrentPlayItem.ep_id);
-                if (!result.result)
+                int decoderType = SettingHelper.GetValue<int>(SettingHelper.Player.SINGLE_FLV_VIDEO_DECODER, 0);
+
+                if (decoderType == 1)
                 {
                     result = await Player.PlaySingleFlvUseFFmpegInterop(quality.playUrlInfo.multi_flv_url[0].url, quality.HttpHeader, positon: _postion);
+
+                    if (!result.result)
+                    {
+                        result = await Player.PlaySingleFlvUseSYEngine(quality.playUrlInfo.multi_flv_url[0].url, quality.HttpHeader, positon: _postion, epId: CurrentPlayItem.ep_id);
+                    }
+                } else
+                {
+                    result = await Player.PlaySingleFlvUseSYEngine(quality.playUrlInfo.multi_flv_url[0].url, quality.HttpHeader, positon: _postion, epId: CurrentPlayItem.ep_id);
+                    
+                    if (!result.result)
+                    {
+                        result = await Player.PlaySingleFlvUseFFmpegInterop(quality.playUrlInfo.multi_flv_url[0].url, quality.HttpHeader, positon: _postion);
+                    }
                 }
+                
             }
             else if (quality.playUrlInfo.mode == VideoPlayMode.SingleMp4)
             {
-                result = await Player.PlayerSingleMp4UseNativeAsync(quality.playUrlInfo.url, positon: _postion);
-                if (!result.result)
+                int decoderType = SettingHelper.GetValue<int>(SettingHelper.Player.SINGLE_MP4_VIDEO_DECODER, 0);
+
+                if (decoderType == 1)
                 {
                     result = await Player.PlaySingleFlvUseSYEngine(quality.playUrlInfo.url, quality.HttpHeader, positon: _postion);
+
+                    if (!result.result)
+                    {
+                        result = await Player.PlayerSingleMp4UseNativeAsync(quality.playUrlInfo.url, positon: _postion);
+                    }
+                } else
+                {
+                    result = await Player.PlayerSingleMp4UseNativeAsync(quality.playUrlInfo.url, positon: _postion);
+                    
+                    if (!result.result)
+                    {
+                        result = await Player.PlaySingleFlvUseSYEngine(quality.playUrlInfo.url, quality.HttpHeader, positon: _postion);
+                    }
                 }
+
             }
             else if (quality.playUrlInfo.mode == VideoPlayMode.MultiFlv)
             {

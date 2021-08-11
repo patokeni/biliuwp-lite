@@ -417,6 +417,22 @@ namespace BiliLite.Helpers
             /// 双击全屏
             /// </summary>
             public const string DOUBLE_CLICK_FULL_SCREEN = "PlayerDoubleClickFullScreen";
+            /// <summary>
+            /// Dash 视频使用的解码器
+            /// </summary>
+            public const string DASH_VIDEO_DECODER = "DashVideoDecoder";
+            /// <summary>
+            /// 单文件 flv 视频使用的解码器
+            /// </summary>
+            public const string SINGLE_FLV_VIDEO_DECODER = "SingleFlvVideoDecoder";
+            /// <summary>
+            /// 单文件 mp4 视频使用的解码器
+            /// </summary>
+            public const string SINGLE_MP4_VIDEO_DECODER = "SingleMp4VideoDecoder";
+            /// <summary>
+            /// 多段 flv 视频使用的解码器
+            /// </summary>
+            public const string MULTI_FLV_VIDEO_DECODER = "MultiFlvVideoDecoder";
 
         }
 

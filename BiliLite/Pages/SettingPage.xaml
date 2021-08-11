@@ -247,6 +247,34 @@
                         <ToggleSwitch x:Name="swPlayerSettingAutoFullWindows" ></ToggleSwitch>
                         <TextBlock  Margin="0 16 0 8" FontSize="16">双击播放器全屏(默认双击暂停)</TextBlock>
                         <ToggleSwitch x:Name="swPlayerSettingDoubleClickFullScreen" ></ToggleSwitch>
+                        <TextBlock  Margin="0 16 0 8"  FontSize="16">Dash 视频解码器</TextBlock>
+                        <ComboBox x:Name="cbDashVideoDecoder" SelectedIndex="0" MinWidth="200">
+                            <ComboBox.Items>
+                                <ComboBoxItem>优先系统解码器</ComboBoxItem>
+                                <ComboBoxItem>优先 FFmpeg 解码器</ComboBoxItem>
+                            </ComboBox.Items>
+                        </ComboBox>
+                        <TextBlock  Margin="0 16 0 8"  FontSize="16">单文件 FLV 视频解码器</TextBlock>
+                        <ComboBox x:Name="cbSingleFlvVideoDecoder" SelectedIndex="0" MinWidth="200">
+                            <ComboBox.Items>
+                                <ComboBoxItem>优先 SYEngine 解码器</ComboBoxItem>
+                                <ComboBoxItem>优先 FFmpeg 解码器</ComboBoxItem>
+                            </ComboBox.Items>
+                        </ComboBox>
+                        <TextBlock  Margin="0 16 0 8"  FontSize="16">单文件 MP4 视频解码器</TextBlock>
+                        <ComboBox x:Name="cbSingleMp4VideoDecoder" SelectedIndex="0" MinWidth="200">
+                            <ComboBox.Items>
+                                <ComboBoxItem>优先系统解码器</ComboBoxItem>
+                                <ComboBoxItem>优先 SYEngine 解码器</ComboBoxItem>
+                            </ComboBox.Items>
+                        </ComboBox>
+                        <TextBlock  Margin="0 16 0 8"  FontSize="16">多段 FLV 视频解码器</TextBlock>
+                        <!-- Margin 用来留白 -->
+                        <ComboBox Margin="0 0 0 8" x:Name="cbMultiFlvVideoDecoder" SelectedIndex="0" MinWidth="200">
+                            <ComboBox.Items>
+                                <ComboBoxItem>优先 SYEngine 解码器</ComboBoxItem>
+                            </ComboBox.Items>
+                        </ComboBox>
                     </StackPanel>
                 </ScrollViewer>
             </PivotItem>

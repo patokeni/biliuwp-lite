@@ -326,6 +326,46 @@ namespace BiliLite.Pages
                     SettingHelper.SetValue(SettingHelper.Player.DOUBLE_CLICK_FULL_SCREEN, swPlayerSettingDoubleClickFullScreen.IsOn);
                 });
             });
+
+            //Dash 视频解码器
+            cbDashVideoDecoder.SelectedIndex = SettingHelper.GetValue<int>(SettingHelper.Player.DASH_VIDEO_DECODER, 0);
+            cbDashVideoDecoder.Loaded += new RoutedEventHandler((sender, e) =>
+            {
+                cbDashVideoDecoder.SelectionChanged += new SelectionChangedEventHandler((obj, args) =>
+                {
+                    SettingHelper.SetValue(SettingHelper.Player.DASH_VIDEO_DECODER, cbDashVideoDecoder.SelectedIndex);
+                });
+            });
+
+            //单文件 FLV 视频解码器
+            cbSingleFlvVideoDecoder.SelectedIndex = SettingHelper.GetValue<int>(SettingHelper.Player.SINGLE_FLV_VIDEO_DECODER, 0);
+            cbSingleFlvVideoDecoder.Loaded += new RoutedEventHandler((sender, e) =>
+            {
+                cbSingleFlvVideoDecoder.SelectionChanged += new SelectionChangedEventHandler((obj, args) =>
+                {
+                    SettingHelper.SetValue(SettingHelper.Player.SINGLE_FLV_VIDEO_DECODER, cbSingleFlvVideoDecoder.SelectedIndex);
+                });
+            });
+
+            //单文件 MP4 视频解码器
+            cbSingleMp4VideoDecoder.SelectedIndex = SettingHelper.GetValue<int>(SettingHelper.Player.SINGLE_MP4_VIDEO_DECODER, 0);
+            cbSingleMp4VideoDecoder.Loaded += new RoutedEventHandler((sender, e) =>
+            {
+                cbSingleMp4VideoDecoder.SelectionChanged += new SelectionChangedEventHandler((obj, args) =>
+                {
+                    SettingHelper.SetValue(SettingHelper.Player.SINGLE_MP4_VIDEO_DECODER, cbSingleMp4VideoDecoder.SelectedIndex);
+                });
+            });
+
+            //多段 MP4 视频解码器
+            cbMultiFlvVideoDecoder.SelectedIndex = SettingHelper.GetValue<int>(SettingHelper.Player.MULTI_FLV_VIDEO_DECODER, 0);
+            cbMultiFlvVideoDecoder.Loaded += new RoutedEventHandler((sender, e) =>
+            {
+                cbMultiFlvVideoDecoder.SelectionChanged += new SelectionChangedEventHandler((obj, args) =>
+                {
+                    SettingHelper.SetValue(SettingHelper.Player.MULTI_FLV_VIDEO_DECODER, cbMultiFlvVideoDecoder.SelectedIndex);
+                });
+            });
         }
 
         private void LoadDanmu()
