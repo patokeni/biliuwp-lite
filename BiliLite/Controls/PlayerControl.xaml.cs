@@ -177,7 +177,8 @@ namespace BiliLite.Controls
         List<int> danmakuLoadedSegment;
         SettingVM settingVM;
         DisplayRequest dispRequest;
-        SystemMediaTransportControls _systemMediaTransportControls;
+        SystemMediaTransportControls _previousSystemMediaTransportControls;
+        SystemMediaTransportControls _systemMediaTransportControls { get { return Player.SystemMediaTransportControls; } }
         DispatcherTimer timer_focus;
         public Player PlayerInstance { get { return Player; } }
         public PlayerControl()
@@ -238,12 +239,6 @@ namespace BiliLite.Controls
         {
             Window.Current.CoreWindow.PointerCursor = new Windows.UI.Core.CoreCursor(Windows.UI.Core.CoreCursorType.Arrow, 0);
             Window.Current.CoreWindow.KeyDown -= PlayerControl_KeyDown;
-            if (_systemMediaTransportControls != null)
-            {
-                _systemMediaTransportControls.DisplayUpdater.ClearAll();
-                _systemMediaTransportControls.IsEnabled = false;
-                _systemMediaTransportControls = null;
-            }
             timer_focus.Stop();
         }
         private void PlayerControl_Loaded(object sender, RoutedEventArgs e)
@@ -251,17 +246,6 @@ namespace BiliLite.Controls
             DanmuControl.ClearAll();
             Window.Current.CoreWindow.KeyDown += PlayerControl_KeyDown;
             BtnFoucs.Focus(FocusState.Programmatic);
-            _systemMediaTransportControls = SystemMediaTransportControls.GetForCurrentView();
-            _systemMediaTransportControls.IsPlayEnabled = true;
-            _systemMediaTransportControls.IsPauseEnabled = true;
-            if (CurrentPlayItem != null)
-            {
-                SystemMediaTransportControlsDisplayUpdater updater = _systemMediaTransportControls.DisplayUpdater;
-                updater.Type = MediaPlaybackType.Video;
-                updater.VideoProperties.Title = CurrentPlayItem.title;
-                updater.Update();
-            }
-            _systemMediaTransportControls.ButtonPressed += _systemMediaTransportControls_ButtonPressed;
 
             LoadPlayerSetting();
             LoadDanmuSetting();
@@ -830,6 +814,7 @@ namespace BiliLite.Controls
             subtitles = null;
             subtitleTimer?.Stop();
             subtitleTimer = null;
+            UpdateSMTC(null);
             Player.ClosePlay();
             if (index >= PlayInfos.Count)
             {
@@ -844,13 +829,6 @@ namespace BiliLite.Controls
             }
             //设置标题
             TopTitle.Text = CurrentPlayItem.title;
-            if (_systemMediaTransportControls != null)
-            {
-                SystemMediaTransportControlsDisplayUpdater updater = _systemMediaTransportControls.DisplayUpdater;
-                updater.Type = MediaPlaybackType.Video;
-                updater.VideoProperties.Title = CurrentPlayItem.title;
-                updater.Update();
-            }
 
             //设置下一集按钮的显示
             if (PlayInfos.Count >= 1 && index != PlayInfos.Count - 1)
@@ -1194,6 +1172,7 @@ namespace BiliLite.Controls
             }
             if (result.result)
             {
+                UpdateSMTC(_systemMediaTransportControls);
                 Player.Play();
             }
             else
@@ -1383,7 +1362,7 @@ namespace BiliLite.Controls
             }
             if (result.result)
             {
-
+                UpdateSMTC(_systemMediaTransportControls);
                 //var text = $"AID:{CurrentPlayItem.avid}\r\nCID:{CurrentPlayItem.cid}\r\nSeasonID:{CurrentPlayItem.season_id}\r\n";
                 //txtInfo.Text = Player.MediaInfo;
                 VideoLoading.Visibility = Visibility.Collapsed;
@@ -1392,6 +1371,7 @@ namespace BiliLite.Controls
             else
             {
                 ShowDialog($"播放失败:{result.message}\r\n你可以进行以下尝试:\r\n1、更换视频清晰度\r\n2、在播放设置打开/关闭硬解视频\r\n3、在播放设置中更换视频类型\r\n4、如果你的视频类型选择了MP4-HEVC，请检查是否安装了HEVC扩展\r\n5、如果是付费视频，请在手机或网页端购买后观看\r\n6、尝试更新您的显卡驱动或使用核显打开应用", "播放失败");
+                UpdateSMTC(null);
             }
         }
 
@@ -2037,6 +2017,7 @@ namespace BiliLite.Controls
         {
             if (!e.need_change)
             {
+                UpdateSMTC(null);
                 ShowDialog($"播放失败:{e.message}\r\n你可以进行以下尝试:\r\n1、更换视频清晰度\r\n2、尝试重新登录\r\n3、在播放设置打开/关闭硬解视频\r\n4、在播放设置中更换视频类型\r\n5、如果你的视频类型选择了MP4-HEVC，请检查是否安装了HEVC扩展\r\n6、尝试更新您的显卡驱动或使用核显打开应用", "播放失败");
                 return;
             }
@@ -2056,8 +2037,12 @@ namespace BiliLite.Controls
             }
             if (!result.result)
             {
+                UpdateSMTC(null);
                 ShowDialog(result.message, "播放失败");
                 return;
+            } else
+            {
+                UpdateSMTC(_systemMediaTransportControls);
             }
 
         }
@@ -2130,9 +2115,11 @@ namespace BiliLite.Controls
             Player.PlayStateChanged -= Player_PlayStateChanged;
             Player.PlayMediaEnded -= Player_PlayMediaEnded;
             Player.PlayMediaError -= Player_PlayMediaError;
+            Player.ChangeEngine -= Player_ChangeEngine;
             //Player.PlayBufferEnd -= Player_PlayBufferEnd;
             //Player.PlayBufferStart -= Player_PlayBufferStart;
             //Player.PlayBuffering -= Player_PlayBuffering;
+            UpdateSMTC(null);
             Player.Dispose();
             if (danmuTimer != null)
             {
@@ -2302,6 +2289,36 @@ namespace BiliLite.Controls
                     
                     Utils.ShowMessageToast("已设置B点, 再次点击可取消设置");
                 }
+            }
+        }
+
+        /// <summary>
+        /// 对当前SystemMediaTransportControls状态进行更新
+        /// </summary>
+        private void UpdateSMTC(SystemMediaTransportControls systemMediaTransportControls)
+        {
+            if (_previousSystemMediaTransportControls != null)
+            {
+                _previousSystemMediaTransportControls.DisplayUpdater.ClearAll();
+                _previousSystemMediaTransportControls.IsEnabled = false;
+                _previousSystemMediaTransportControls = null;
+            }
+
+            if (systemMediaTransportControls != null)
+            {
+                _previousSystemMediaTransportControls = systemMediaTransportControls;
+
+                systemMediaTransportControls.IsEnabled = true;
+                systemMediaTransportControls.IsPlayEnabled = true;
+                systemMediaTransportControls.IsPauseEnabled = true;
+                if (CurrentPlayItem != null)
+                {
+                    SystemMediaTransportControlsDisplayUpdater updater = systemMediaTransportControls.DisplayUpdater;
+                    updater.Type = MediaPlaybackType.Video;
+                    updater.VideoProperties.Title = CurrentPlayItem.title;
+                    updater.Update();
+                }
+                systemMediaTransportControls.ButtonPressed += _systemMediaTransportControls_ButtonPressed;
             }
         }
     }
