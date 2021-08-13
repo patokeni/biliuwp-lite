@@ -81,7 +81,7 @@ namespace BiliLite.Controls
         private List<FFmpegInteropMSS> _ffmpegMSSItems;
         private MediaPlaybackList _mediaPlaybackList;
 
-
+        private DateTime _previousResume;
 
 
         /// <summary>
@@ -849,9 +849,63 @@ namespace BiliLite.Controls
                 else
                 {
                     _ffmpegMSSVideo = await FFmpegInteropMSS.CreateFromUriAsync(videoUrl.base_url, _ffmpegConfig);
+                    _ffmpegMSSVideo.OnInterruptCallback += (mss, arg) => {
+                        if (arg.PreviousVideoSampleTime != null && (DateTime.Now - arg.PreviousVideoSampleTime.DateTime).TotalSeconds > 5)
+                        {
+                            if (PlayState == PlayState.Playing)
+                            {
+                                if (_previousResume != null && (DateTime.Now - _previousResume).TotalSeconds < 5)
+                                    return;
+                                arg.Interrupt();
+                                Task.Run(async () => {
+                                    System.Threading.Thread.Sleep(500);
+                                    await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+                                    {
+                                        Utils.ShowMessageToast("在5秒内未接收到视频数据，正在重试");
+                                        PlayState = PlayState.Error;
+                                        PlayStateChanged?.Invoke(this, PlayState);
+                                        ChangeEngine?.Invoke(this, new ChangePlayerEngine()
+                                        {
+                                            change_engine = PlayEngine.FFmpegInteropMSS,
+                                            current_mode = PlayEngine.FFmpegInteropMSS,
+                                            need_change = true,
+                                            play_type = PlayMediaType.Dash
+                                        });
+                                    });
+                                });
+                            }
+                        }
+                    };
                     if (audioUrl != null)
                     {
                         _ffmpegMSSAudio = await FFmpegInteropMSS.CreateFromUriAsync(audioUrl.base_url, _ffmpegConfig);
+                        _ffmpegMSSAudio.OnInterruptCallback += (mss, arg) => {
+                            if (arg.PreviousAudioSampleTime != null && (DateTime.Now - arg.PreviousAudioSampleTime.DateTime).TotalSeconds > 5)
+                            {
+                                if (PlayState == PlayState.Playing)
+                                {
+                                    if (_previousResume != null && (DateTime.Now - _previousResume).TotalSeconds < 5)
+                                        return;
+                                    arg.Interrupt();
+                                    Task.Run(async () => {
+                                        System.Threading.Thread.Sleep(500);
+                                        await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+                                        {
+                                            Utils.ShowMessageToast("在5秒内未接收到音频数据，正在重试");
+                                            PlayState = PlayState.Error;
+                                            PlayStateChanged?.Invoke(this, PlayState);
+                                            ChangeEngine?.Invoke(this, new ChangePlayerEngine()
+                                            {
+                                                change_engine = PlayEngine.FFmpegInteropMSS,
+                                                current_mode = PlayEngine.FFmpegInteropMSS,
+                                                need_change = true,
+                                                play_type = PlayMediaType.Dash
+                                            });
+                                        });
+                                    });
+                                }
+                            }
+                        };
                     }
                    
                 }
@@ -1597,6 +1651,7 @@ namespace BiliLite.Controls
         public void Play()
         {
             if (Position == 0 && Duration == 0) return;
+            _previousResume = DateTime.Now;
             if (_mediaTimelineController != null)
             {
                 if (_mediaTimelineController.State == MediaTimelineControllerState.Paused)
