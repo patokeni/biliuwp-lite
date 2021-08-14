@@ -82,7 +82,7 @@ namespace BiliLite.Controls
         private MediaPlaybackList _mediaPlaybackList;
 
         private DateTime _previousResume;
-
+        private bool _isClosing;
 
         /// <summary>
         /// 播放状态变更
@@ -834,6 +834,7 @@ namespace BiliLite.Controls
                 PlayStateChanged?.Invoke(this, PlayState);
                 //关闭正在播放的视频
                 ClosePlay();
+                _isClosing = false;
                 var _ffmpegConfig = CreateFFmpegInteropConfig(header);
                 if (isLocal)
                 {
@@ -850,19 +851,24 @@ namespace BiliLite.Controls
                 {
                     _ffmpegMSSVideo = await FFmpegInteropMSS.CreateFromUriAsync(videoUrl.base_url, _ffmpegConfig);
                     _ffmpegMSSVideo.OnInterruptCallback += (mss, arg) => {
-                        if (arg.PreviousVideoSampleTime != null && (DateTime.Now - arg.PreviousVideoSampleTime.DateTime).TotalSeconds > 5)
+                        if (_isClosing)
+                        {
+                            arg.Interrupt();
+                            return;
+                        }
+                        if (arg.PreviousVideoSampleTime != null && (DateTime.Now - arg.PreviousVideoSampleTime.DateTime).TotalSeconds > 30)
                         {
                             if (PlayState == PlayState.Playing)
                             {
-                                if (_previousResume != null && (DateTime.Now - _previousResume).TotalSeconds < 5)
+                                if (_previousResume != null && (DateTime.Now - _previousResume).TotalSeconds < 30)
                                     return;
                                 arg.Interrupt();
                                 Task.Run(async () => {
                                     System.Threading.Thread.Sleep(500);
                                     await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
                                     {
-                                        Utils.ShowMessageToast("在5秒内未接收到视频数据，正在重试");
-                                        PlayState = PlayState.Error;
+                                        Utils.ShowMessageToast("在30秒内未接收到视频数据，已停止播放");
+                                        /*PlayState = PlayState.Error;
                                         PlayStateChanged?.Invoke(this, PlayState);
                                         ChangeEngine?.Invoke(this, new ChangePlayerEngine()
                                         {
@@ -870,7 +876,7 @@ namespace BiliLite.Controls
                                             current_mode = PlayEngine.FFmpegInteropMSS,
                                             need_change = true,
                                             play_type = PlayMediaType.Dash
-                                        });
+                                        });*/
                                     });
                                 });
                             }
@@ -880,19 +886,24 @@ namespace BiliLite.Controls
                     {
                         _ffmpegMSSAudio = await FFmpegInteropMSS.CreateFromUriAsync(audioUrl.base_url, _ffmpegConfig);
                         _ffmpegMSSAudio.OnInterruptCallback += (mss, arg) => {
-                            if (arg.PreviousAudioSampleTime != null && (DateTime.Now - arg.PreviousAudioSampleTime.DateTime).TotalSeconds > 5)
+                            if (_isClosing)
+                            {
+                                arg.Interrupt();
+                                return;
+                            }
+                            if (arg.PreviousAudioSampleTime != null && (DateTime.Now - arg.PreviousAudioSampleTime.DateTime).TotalSeconds > 30)
                             {
                                 if (PlayState == PlayState.Playing)
                                 {
-                                    if (_previousResume != null && (DateTime.Now - _previousResume).TotalSeconds < 5)
+                                    if (_previousResume != null && (DateTime.Now - _previousResume).TotalSeconds < 30)
                                         return;
                                     arg.Interrupt();
                                     Task.Run(async () => {
                                         System.Threading.Thread.Sleep(500);
                                         await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
                                         {
-                                            Utils.ShowMessageToast("在5秒内未接收到音频数据，正在重试");
-                                            PlayState = PlayState.Error;
+                                            Utils.ShowMessageToast("在30秒内未接收到音频数据，已停止播放");
+                                            /*PlayState = PlayState.Error;
                                             PlayStateChanged?.Invoke(this, PlayState);
                                             ChangeEngine?.Invoke(this, new ChangePlayerEngine()
                                             {
@@ -900,7 +911,7 @@ namespace BiliLite.Controls
                                                 current_mode = PlayEngine.FFmpegInteropMSS,
                                                 need_change = true,
                                                 play_type = PlayMediaType.Dash
-                                            });
+                                            });*/
                                         });
                                     });
                                 }
@@ -910,6 +921,38 @@ namespace BiliLite.Controls
                    
                 }
 
+                _ffmpegMSSVideo.ErrorContext.AVErrorHandler += async (mss, arg) =>
+                {
+                    if (_playerVideo == null || _playerVideo.Source == null) return;
+                    await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+                    {
+                        PlayState = PlayState.Error;
+                        PlayStateChanged?.Invoke(this, PlayState);
+                        ChangeEngine?.Invoke(this, new ChangePlayerEngine()
+                        {
+                            need_change = false,
+                            message = arg.Message + ": " + arg.GetAVErrorMessage()
+                        });
+                    });
+                };
+
+                if (_ffmpegMSSAudio != null)
+                {
+                    _ffmpegMSSAudio.ErrorContext.AVErrorHandler += async (mss, arg) =>
+                    {
+                        if (_playerAudio == null || _playerAudio.Source == null) return;
+                        await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+                        {
+                            PlayState = PlayState.Error;
+                            PlayStateChanged?.Invoke(this, PlayState);
+                            ChangeEngine?.Invoke(this, new ChangePlayerEngine()
+                            {
+                                need_change = false,
+                                message = arg.Message + ": " + arg.GetAVErrorMessage()
+                            });
+                        });
+                    };
+                }
 
                 //设置时长
                 Duration = _ffmpegMSSVideo.Duration.TotalSeconds;
@@ -967,7 +1010,7 @@ namespace BiliLite.Controls
                         ChangeEngine?.Invoke(this, new ChangePlayerEngine()
                         {
                             need_change = false,
-                            message = arg.ErrorMessage
+                            message = arg.ErrorMessage + (arg.ExtendedErrorCode == null ? "" : " " + (AVErrorHelper.GetErrorString(arg.ExtendedErrorCode.HResult)) )
                         });
                     });
 
@@ -1059,7 +1102,7 @@ namespace BiliLite.Controls
                             Buffering = false;
                         });
                     });
-                    _playerAudio.MediaEnded += new TypedEventHandler<MediaPlayer, object>(async (e, arg) =>
+                    /*_playerAudio.MediaEnded += new TypedEventHandler<MediaPlayer, object>(async (e, arg) =>
                     {
                         await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
                         {
@@ -1084,7 +1127,7 @@ namespace BiliLite.Controls
                                 }
                             }
                         });
-                    });
+                    });*/
                     //设置音量
                     _playerAudio.Volume = Volume;
                     mediaPlayerAudio.SetMediaPlayer(_playerAudio);
@@ -1113,7 +1156,7 @@ namespace BiliLite.Controls
                 return new PlayerOpenResult()
                 {
                     result = false,
-                    message = ex.Message,
+                    message = ex.Message + " " + (AVErrorHelper.GetErrorString(ex.HResult) ?? ""),
                     detail_message = ex.StackTrace
                 };
             }
@@ -1699,6 +1742,7 @@ namespace BiliLite.Controls
         /// </summary>
         public void ClosePlay()
         {
+            _isClosing = true;
             //全部设置为NULL
             if (_mediaTimelineController != null)
             {
